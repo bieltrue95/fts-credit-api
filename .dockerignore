@@ -1,0 +1,10 @@
+**/.git
+**/.vs
+**/bin
+**/obj
+**/*.user
+**/logs
+.gitignore
+README.md
+CLAUDE.md
+docker-compose.yml

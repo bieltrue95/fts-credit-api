@@ -1,0 +1,83 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/FtsCredit.Api/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ConnectionStrings__Postgres=Host=postgres;Port=5432;Database=fts_credit;Username=postgres;Password=postgres
+      - ConnectionStrings__Redis=redis:6379
+      - Jwt__Secret=fts-credit-super-secret-key-minimum-32-chars!!
+      - Jwt__Issuer=fts-credit-api
+      - Jwt__Audience=fts-credit-clients
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Port=5672
+      - RabbitMQ__Username=guest
+      - RabbitMQ__Password=guest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: on-failure
+    networks:
+      - fts-net
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fts_credit
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fts_credit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - fts-net
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - fts-net
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - fts-net
+
+volumes:
+  postgres_data:
+
+networks:
+  fts-net:
+    driver: bridge
